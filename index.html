@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Albaranes PWA</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="manifest" href="manifest.json">
+  <script>navigator.serviceWorker.register("service-worker.js")</script>
+  <meta name="theme-color" content="#2c3e50">
+</head>
+
+<body>
+  <div class="container">
+    <h1>Albaranes de entrega</h1>
+
+    <div class="camera-section">
+      <button id="btnFoto">Sacar foto del albarán</button>
+      <div id="preview" class="preview"></div>
+    </div>
+
+    <div class="form-section">
+      <h2>Datos del albarán</h2>
+      <form id="albaranForm">
+        <input type="text" id="matricula" placeholder="Matricula (ej: 1234ABC)" required>
+        <input type="number" id="peso" step="any" placeholder="Peso neto (kg)" required>
+        <button type="submit">Guardar albarán</button>
+      </form>
+    </div>
+
+    <div class="list-section">
+      <h2>Lista de albaranes</h2>
+      <ul id="listaAlbaranes">
+        <li>No hay albaranes guardados aún</li>
+      </ul>
+      <button id="btnExportar" class="secondary">Exportar CSV</button>
+    </div>
+  </div>
+
+  <script src="js/db.js"></script>
+  <script src="js/camera.js"></script>
+  <script src="js/app.js"></script>
+</body>
+
+</html>
