@@ -1,13 +1,12 @@
 const CACHE_NAME = 'albaranes-v1';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/css/style.css',
-  '/js/app.js',
-  '/js/db.js',
-  '/js/camera.js',
-  '/manifest.json',
-  '/assets/icon-192.png'
+  'index.html',
+  'css/style.css',
+  'js/app.js',
+  'js/db.js',
+  'js/camera.js',
+  'manifest.json',
+  'assets/icon-192.png'
 ];
 
 // Instalación: guardar recursos en caché
