@@ -6,15 +6,7 @@ document.addEventListener('DOMContentLoaded', async() => {
 
   // Botón de sacar foto
 	document.getElementById('btnFoto').addEventListener('click', async () => {
-  	try {
-      const fotoBase64 = await tomarFoto();
-      mostrarPreview(fotoBase64);
-      // Opcional: aqui podríamos llamar a una función OCR pero por ahora
-      // solo guardamos la foto en memoria
-    } catch (error) {
-      console.error('Error al tomar foto:', error);
-      alert('No se pudo tomar la foto. Verifica permisos.');
-    }
+    await tomarFoto();
   });
 
   // Formulario manual
@@ -40,6 +32,9 @@ document.addEventListener('DOMContentLoaded', async() => {
       fecha: new Date().toISOString(),
       sincronizado: false // para futura sincronización con servidor
     };
+
+    // Dentro del evento submit, antes de guardar:
+    detenerCamara();  // Si la cámara está activa, la paramos
 
     try {
       const id = await guardarAlbaran(nuevoAlbaran);
