@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', async() => {
   // Formulario manual
   document.getElementById('albaranForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const matricula = document.getElementById('matricula').ariaValueMax.trim().toUpperCase();
+    const matricula = document.getElementById('matricula').value.trim().toUpperCase();
     const peso = parseFloat(document.getElementById('peso').value);
 
     if (!matricula || isNaN(peso)) {
@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', async() => {
       console.log('Guardado con id:', id);
       // limpiar formulario y vista previa
       document.getElementById('matricula').value = '';
-      document.getElementById('peso').value = ';
+      document.getElementById('peso').value = '';
       document.getElementById('preview').innerHTML = '';
       fotoActualBase64 = null;
       await cargarLista();
@@ -52,8 +52,9 @@ document.addEventListener('DOMContentLoaded', async() => {
   });
 
   // Botón exportar a CSV
-  document.getElementById('btnExportar').addEventListener('click', exportarCSV)
+  document.getElementById('btnExportar').addEventListener('click', exportarCSV);
 });
+
 
 async function cargarLista() {
   albaranes = await obtenerAlbaranes();
@@ -109,4 +110,4 @@ function exportarCSV() {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
- }
+}

@@ -18,7 +18,7 @@ function abrirDB() {
 
         request.onupgradeneeded = (event) => {
             const dbActual = event.target.result;
-            if (!dbActual.objectStoreNames.contains(STORE_NAME)), {
+            if (!dbActual.objectStoreNames.contains(STORE_NAME)) {
                 // Crear almacén con clave auto-incremental
                 const store = dbActual.createObjectStore(STORE_NAME, {
                     keyPath: 'id',
@@ -26,7 +26,7 @@ function abrirDB() {
                 });
                 // Indices para buscar por matrícula o fecha
                 store.createIndex('fecha', 'fecha', { unique: false});
-                sotre.createIndex('matricula', 'matricula', { unique: false });
+                store.createIndex('matricula', 'matricula', { unique: false });
             }
         };
     });
