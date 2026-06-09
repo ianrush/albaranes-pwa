@@ -1,15 +1,18 @@
-// camera.js - Acceso a cámara con getUserMedia y captura de foto
+// camera.js - Manejo de cámara con visor en vivo, captura y callback opcional
 
 let stream = null;
 let videoElement = null;
 let canvasElement = null;
 let fotoActualBase64 = null;
 
-// Crear elementos de video y canvas dinámicamente
-function crearVisor() {
+// Esta función se llamará cuando el usuario haga clic en "Sacar foto"
+// Recibe un callback que se ejecutará después de capturar la foto (para el OCR)
+async function tomarFotoConVisor(onFotoCapturada) {
+    // Limpiar el área de preview y crear el visor
     const previewDiv = document.getElementById('preview');
-    previewDiv.innerHTML = ''; // Limpiar
+    previewDiv.innerHTML = '';
 
+    // Crear elementos
     videoElement = document.createElement('video');
     videoElement.setAttribute('autoplay', '');
     videoElement.setAttribute('playsinline', '');
@@ -22,37 +25,43 @@ function crearVisor() {
 
     const btnCapturar = document.createElement('button');
     btnCapturar.textContent = '📸 Capturar foto';
-    btnCapturar.id = 'btnCapturar';
     btnCapturar.style.marginTop = '0.5rem';
+    btnCapturar.style.width = 'auto';
+    btnCapturar.style.padding = '0.5rem 1rem';
 
     previewDiv.appendChild(videoElement);
     previewDiv.appendChild(canvasElement);
     previewDiv.appendChild(btnCapturar);
 
-    return { videoElement, canvasElement, btnCapturar };
+    // Iniciar cámara
+    const ok = await iniciarCamara();
+    if (!ok) return;
+
+    // Configurar evento del botón capturar
+    btnCapturar.onclick = async () => {
+        const foto = capturarFoto();   // Obtiene base64 y detiene cámara
+        if (foto && typeof onFotoCapturada === 'function') {
+            // Llamar al callback (por ejemplo, para ejecutar el OCR)
+            await onFotoCapturada(foto);
+        }
+    };
 }
 
-// Solicitar permiso y activar cámara trasera
+// Iniciar la cámara (prefiere la trasera)
 async function iniciarCamara() {
     try {
-        // Detener cualquier stream anterior
         if (stream) {
             stream.getTracks().forEach(track => track.stop());
         }
-
-        // Preferir cámara trasera si es posible
         const constraints = {
             video: { facingMode: { exact: "environment" } }
         };
-
         try {
             stream = await navigator.mediaDevices.getUserMedia(constraints);
         } catch (err) {
-            // Si falla cámara trasera, usar cualquier cámara
-            console.warn('No se pudo acceder a cámara trasera, usando por defecto', err);
+            console.warn('Cámara trasera no disponible, usando cualquier cámara', err);
             stream = await navigator.mediaDevices.getUserMedia({ video: true });
         }
-
         if (videoElement) {
             videoElement.srcObject = stream;
             await videoElement.play();
@@ -60,40 +69,35 @@ async function iniciarCamara() {
         return true;
     } catch (error) {
         console.error('Error al acceder a la cámara:', error);
-        alert('No se pudo acceder a la cámara. Verifica permisos y que usas HTTPS.');
+        alert('No se pudo acceder a la cámara. Verifica permisos y HTTPS.');
         return false;
     }
 }
 
-// Capturar la foto actual del video
+// Capturar el frame actual y devolverlo en base64
 function capturarFoto() {
     if (!videoElement || !canvasElement) {
         alert('La cámara no está activa');
         return null;
     }
-
     const width = videoElement.videoWidth;
     const height = videoElement.videoHeight;
     canvasElement.width = width;
     canvasElement.height = height;
-
     const context = canvasElement.getContext('2d');
     context.drawImage(videoElement, 0, 0, width, height);
-
-    // Convertir a base64 (formato JPEG)
     const base64 = canvasElement.toDataURL('image/jpeg', 0.8);
     fotoActualBase64 = base64;
 
-    // Detener la cámara para ahorrar batería (opcional)
+    // Detener la cámara para ahorrar batería
     detenerCamara();
 
     // Mostrar la foto capturada en lugar del video
     mostrarPreview(base64);
-
     return base64;
 }
 
-// Detener la cámara
+// Detener la cámara y liberar recursos
 function detenerCamara() {
     if (stream) {
         stream.getTracks().forEach(track => track.stop());
@@ -104,45 +108,21 @@ function detenerCamara() {
     }
 }
 
-// Mostrar vista previa de la foto capturada
-function mostrarPreview(base64, contenedorId = 'preview') {
-    const contenedor = document.getElementById(contenedorId);
+// Mostrar la foto capturada en el área de preview
+function mostrarPreview(base64) {
+    const contenedor = document.getElementById('preview');
+    // Limpiar el contenido actual (el video y botón desaparecen)
     contenedor.innerHTML = '';
     if (!base64) return;
-
     const img = document.createElement('img');
     img.src = base64;
-    img.alt = 'Albarán capturado';
     img.style.maxWidth = '100%';
     img.style.borderRadius = '8px';
     img.style.border = '1px solid #ccc';
     contenedor.appendChild(img);
 }
 
-// Función principal que debe llamarse al hacer clic en "Sacar foto"
-async function tomarFotoConVisor() {
-    // Limpiar vista previa anterior
-    const previewDiv = document.getElementById('preview');
-    previewDiv.innerHTML = '';
-
-    // Crear el visor en vivo
-    const { btnCapturar } = crearVisor();
-
-    // Iniciar cámara
-    const ok = await iniciarCamara();
-    if (!ok) return;
-
-    // Configurar botón capturar
-    btnCapturar.onclick = () => {
-        const foto = capturarFoto();
-        if (foto) {
-            // Opcional: aquí podrías ya parsear con OCR en el futuro
-            alert('Foto capturada correctamente');
-        }
-    };
-}
-
-// Para compatibilidad con el código anterior (si se llama a tomarFoto)
+// Función simple para tomar foto sin callback (por si se usa desde otro lado)
 async function tomarFoto() {
-    await tomarFotoConVisor();
+    await tomarFotoConVisor(null);
 }

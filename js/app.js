@@ -5,8 +5,18 @@ document.addEventListener('DOMContentLoaded', async() => {
 	await cargarLista();
 
   // Botón de sacar foto
-	document.getElementById('btnFoto').addEventListener('click', async () => {
-    await tomarFoto();
+  document.getElementById('btnFoto').addEventListener('click', async () => {
+    // Llama a tomarFotoConVisor y pasa una función callback
+    await tomarFotoConVisor(async (fotoBase64) => {
+        // Aquí llamas a la función de OCR que ya tienes en ocr.js
+        const { matricula, pesoKg } = await extraerDatosDeFoto(fotoBase64);
+        if (matricula) {
+            document.getElementById('matricula').value = matricula;
+        }
+        if (pesoKg) {
+            document.getElementById('peso').value = pesoKg;
+        }
+    });
   });
 
   // Formulario manual
@@ -110,4 +120,11 @@ function exportarCSV() {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+}
+
+async function procesarOCRTrasFoto(fotoBase64) {
+    if (!fotoBase64) return;
+    const { matricula, peso } = await extraerDatosDeFoto(fotoBase64);
+    if (matricula) document.getElementById('matricula').value = matricula;
+    if (peso) document.getElementById('peso').value = peso;
 }
