@@ -126,3 +126,27 @@ function mostrarPreview(base64) {
 async function tomarFoto() {
     await tomarFotoConVisor(null);
 }
+
+// Cargar imagen desde el sistema de archivos (galería o explorador)
+function cargarImagenDesdeArchivo(onImagenCargada) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg, image/png, image/jpg';
+    input.onchange = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        // Convertir a base64
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const base64 = e.target.result;
+            fotoActualBase64 = base64;
+            mostrarPreview(base64);   // reutilizamos la misma función de preview
+            if (typeof onImagenCargada === 'function') {
+                await onImagenCargada(base64);
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+    input.click();
+}

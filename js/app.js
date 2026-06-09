@@ -19,6 +19,16 @@ document.addEventListener('DOMContentLoaded', async() => {
     });
   });
 
+  // Botón para cargar imagen desde la galería
+  document.getElementById('btnCargarImagen').addEventListener('click', () => {
+    cargarImagenDesdeArchivo(async (base64) => {
+        // Ejecutar el mismo OCR que con la cámara
+        const { matricula, pesoKg } = await extraerDatosDeFoto(base64);
+        if (matricula) document.getElementById('matricula').value = matricula;
+        if (pesoKg) document.getElementById('peso').value = pesoKg;
+    });
+  });
+
   // Formulario manual
   document.getElementById('albaranForm').addEventListener('submit', async (e) => {
     e.preventDefault();
