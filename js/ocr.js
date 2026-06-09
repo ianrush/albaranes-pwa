@@ -58,21 +58,42 @@ function extraerMatricula(texto) {
 
 // Extraer peso neto SIEMPRE en kilogramos (detecta toneladas automáticamente)
 function extraerPesoEnKg(texto) {
-    // 1. Formato 1: Tabla con "NETO (t)" - valor en toneladas (coma decimal)
-    let match = texto.match(/NETO\s*\(\s*t\s*\)\s+[\d.,]+\s+([\d.,]+)/i);
+    // 1. Formato 1 (Heidelberg): tabla con NETO (t) y valor en la misma línea o siguiente
+    // Busca "NETO (t)" y luego captura el número que está en la misma fila (hasta fin de línea)
+    let match = texto.match(/NETO\s*\(\s*t\s*\)\s*[|\s]*([\d.,]+)/i);
     if (match) {
-        let toneladas = parseFloat(match[1].replace(',', '.'));
-        return Math.round(toneladas * 1000); // convertir a kg y redondear
+        let pesoStr = match[1].replace(/\./g, '').replace(',', '.');
+        let toneladas = parseFloat(pesoStr);
+        if (!isNaN(toneladas)) return Math.round(toneladas * 1000);
     }
 
-    // 2. Formato 2: "NETO" con punto miles y coma decimal (ej: 31.020,00)
+    // Alternativa: buscar línea que contenga "NETO (t)" y luego una línea con números
+    const lines = texto.split(/\r?\n/);
+    let netoIndex = -1;
+    for (let i = 0; i < lines.length; i++) {
+        if (/NETO\s*\(\s*t\s*\)/i.test(lines[i])) {
+            netoIndex = i;
+            break;
+        }
+    }
+    if (netoIndex !== -1 && netoIndex + 1 < lines.length) {
+        const nextLine = lines[netoIndex + 1];
+        const numberMatch = nextLine.match(/([\d.,]+)/);
+        if (numberMatch) {
+            let pesoStr = numberMatch[1].replace(/\./g, '').replace(',', '.');
+            let toneladas = parseFloat(pesoStr);
+            if (!isNaN(toneladas)) return Math.round(toneladas * 1000);
+        }
+    }
+
+    // 2. Formato 2 (CRH): "NETO" con punto miles y coma decimal (ej: 31.020,00)
     match = texto.match(/NETO\s+([\d.]+,\d{2})/i);
     if (match) {
         let pesoStr = match[1].replace(/\./g, '').replace(',', '.');
         return parseFloat(pesoStr);
     }
 
-    // 3. Formato 3: "Peso Neto : 31.720"
+    // 3. Formato 3 (Lemona): "Peso Neto : 31.720"
     match = texto.match(/Peso\s+Neto\s*:\s*([\d.]+)/i);
     if (match) {
         let pesoStr = match[1].replace(/\./g, '');
