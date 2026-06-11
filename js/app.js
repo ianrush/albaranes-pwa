@@ -1,140 +1,173 @@
-//app.js - Controla la interfaz de usuario y flujo
-let albaranes = []
+// app.js - Control de navegación y gestión de barcos
 
-document.addEventListener('DOMContentLoaded', async() => {
-	await cargarLista();
+let barcoActualId = null;
 
-  // Botón de sacar foto
-  document.getElementById('btnFoto').addEventListener('click', async () => {
-    // Llama a tomarFotoConVisor y pasa una función callback
-    await tomarFotoConVisor(async (fotoBase64) => {
-        // Aquí llamas a la función de OCR que ya tienes en ocr.js
-        const { matricula, pesoKg } = await extraerDatosDeFoto(fotoBase64);
-        if (matricula) {
-            document.getElementById('matricula').value = matricula;
-        }
-        if (pesoKg) {
-            document.getElementById('peso').value = pesoKg;
-        }
-    });
+document.addEventListener('DOMContentLoaded', async () => {
+  // Mostrar pantalla de lista al inicio
+  mostrarPantalla('lista');
+  await cargarListaBarcos();
+
+  // Eventos de navegación
+  document.querySelectorAll('.btnVolver').forEach(btn => {
+    btn.addEventListener('click', () => mostrarPantalla('lista'));
   });
+  document.getElementById('btnNuevoBarco').addEventListener('click', () => mostrarPantalla('nuevoBarco'));
 
-  // Botón para cargar imagen desde la galería
-  document.getElementById('btnCargarImagen').addEventListener('click', () => {
-    cargarImagenDesdeArchivo(async (base64) => {
-        // Ejecutar el mismo OCR que con la cámara
-        const { matricula, pesoKg } = await extraerDatosDeFoto(base64);
-        if (matricula) document.getElementById('matricula').value = matricula;
-        if (pesoKg) document.getElementById('peso').value = pesoKg;
-    });
-  });
-
-  // Formulario manual
-  document.getElementById('albaranForm').addEventListener('submit', async (e) => {
+  // Formulario nuevo barco
+  document.getElementById('formNuevoBarco').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const nombre = document.getElementById('nombreBarco').value;
+    const cargaTotal = document.getElementById('cargaTotal').value;
+    if (!nombre || !cargaTotal) return;
+    const id = await iniciarNuevoBarco(nombre, cargaTotal);
+    await mostrarDetalleBarco(id);
+  });
+
+  // Formulario de albarán en pantalla detalle
+  document.getElementById('albaranFormDetalle').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!barcoActualId) return;
     const matricula = document.getElementById('matricula').value.trim().toUpperCase();
     const peso = parseFloat(document.getElementById('peso').value);
-
     if (!matricula || isNaN(peso)) {
-      alert('Rellena matricula y peso correctamente');
+      alert('Rellena matrícula y peso');
       return;
     }
-
     if (!fotoActualBase64) {
-      alert('Primero saca una foto del albarán');
+      alert('Primero saca o carga una foto del albarán');
       return;
     }
-
     const nuevoAlbaran = {
-      matricula: matricula,
-      peso: peso,
-      fotoBase64: fotoActualBase64, // guardamos la foto completa
+      matricula, peso, barcoId: barcoActualId,
+      fotoBase64: fotoActualBase64,
       fecha: new Date().toISOString(),
-      sincronizado: false // para futura sincronización con servidor
+      sincronizado: false
     };
+    await guardarAlbaran(nuevoAlbaran);
+    // Limpiar formulario y vista previa
+    document.getElementById('matricula').value = '';
+    document.getElementById('peso').value = '';
+    document.getElementById('preview').innerHTML = '';
+    fotoActualBase64 = null;
+    // Refrescar la vista detalle
+    await mostrarDetalleBarco(barcoActualId);
+  });
 
-    // Dentro del evento submit, antes de guardar:
-    detenerCamara();  // Si la cámara está activa, la paramos
-
-    try {
-      const id = await guardarAlbaran(nuevoAlbaran);
-      console.log('Guardado con id:', id);
-      // limpiar formulario y vista previa
-      document.getElementById('matricula').value = '';
-      document.getElementById('peso').value = '';
-      document.getElementById('preview').innerHTML = '';
-      fotoActualBase64 = null;
-      await cargarLista();
-    } catch (error) {
-      console.error('Error al guardar:', error);
-      alert('Error al guardar en la base de datos local');
+  // Botón finalizar carga
+  document.getElementById('btnFinalizarCarga').addEventListener('click', async () => {
+    if (barcoActualId && confirm('¿Marcar esta carga como completada?')) {
+      await finalizarCarga(barcoActualId);
+      await mostrarDetalleBarco(barcoActualId);
     }
   });
 
-  // Botón exportar a CSV
-  document.getElementById('btnExportar').addEventListener('click', exportarCSV);
-});
-
-
-async function cargarLista() {
-  albaranes = await obtenerAlbaranes();
-  const listaUl = document.getElementById('listaAlbaranes');
-
-  if (albaranes.length === 0) {
-    listaUl.innerHTML = '<li>No hay albaranes guardados aun</li>';
-    return;
-  }
-
-  listaUl.innerHTML = '';
-  for (const item of albaranes) {
-    const li = document.createElement('li');
-    const fechaFormateada = new Date(item.fecha).toLocaleString();
-    li.innerHTML = `
-      <div>
-        <span>${item.matricula}</span> - ${item.peso} kg<br>
-        <small>${fechaFormateada}</small>
-      </div>
-      <button class="btn-borrar" data-id="${item.id}">Borrar</button>`;
-    listaUl.appendChild(li);
-  }
-
-  // Asignar eventos a los botones de borrar
-  document.querySelectorAll('.btn-borrar').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      const id = Number(btn.dataset.id);
-      if (confirm('¿Borrar este albarán?')) {
-        await borrarAlbaran(id);
-        await cargarLista();
-      }
+  // Botones de cámara (adaptados para usar el barcoActualId)
+  document.getElementById('btnFotoDetalle').addEventListener('click', async () => {
+    if (!barcoActualId) return;
+    await tomarFotoConVisor(async (base64) => {
+      const { matricula, pesoKg } = await extraerDatosDeFoto(base64);
+      if (matricula) document.getElementById('matricula').value = matricula;
+      if (pesoKg) document.getElementById('peso').value = pesoKg;
     });
   });
+
+  document.getElementById('btnCargarImagenDetalle').addEventListener('click', () => {
+    if (!barcoActualId) return;
+    cargarImagenDesdeArchivo(async (base64) => {
+      const { matricula, pesoKg } = await extraerDatosDeFoto(base64);
+      if (matricula) document.getElementById('matricula').value = matricula;
+      if (pesoKg) document.getElementById('peso').value = pesoKg;
+    });
+  });
+});
+
+function mostrarPantalla(pantalla) {
+  document.getElementById('pantallaLista').style.display = pantalla === 'lista' ? 'block' : 'none';
+  document.getElementById('pantallaNuevoBarco').style.display = pantalla === 'nuevoBarco' ? 'block' : 'none';
+  document.getElementById('pantallaDetalle').style.display = pantalla === 'detalle' ? 'block' : 'none';
+  if (pantalla === 'lista') cargarListaBarcos();
 }
 
-function exportarCSV() {
+async function cargarListaBarcos() {
+  const activos = await obtenerBarcos('activo');
+  const completados = await obtenerBarcos('completado');
+
+  const contActivos = document.getElementById('listaBarcosActivos');
+  const contCompletados = document.getElementById('listaBarcosCompletados');
+
+  contActivos.innerHTML = activos.length ? '' : '<p>No hay barcos activos</p>';
+  contCompletados.innerHTML = completados.length ? '' : '<p>No hay histórico</p>';
+
+  for (const barco of activos) {
+    const resumen = await calcularResumenBarco(barco.id);
+    const card = crearTarjetaBarco(barco, resumen);
+    contActivos.appendChild(card);
+  }
+  for (const barco of completados) {
+    const card = crearTarjetaBarco(barco, null);
+    contCompletados.appendChild(card);
+  }
+}
+
+function crearTarjetaBarco(barco, resumen) {
+  const div = document.createElement('div');
+  div.className = 'barco-card';
+  div.innerHTML = `
+        <h3>${barco.nombre}</h3>
+        <p>Previsto: ${barco.cargaTotalPrevista.toLocaleString()} kg</p>
+        ${resumen ? `<p>Acumulado: ${resumen.cargaAcumulada.toLocaleString()} kg</p>
+                      <p>Restante: ${resumen.cargaRestante.toLocaleString()} kg</p>
+                      <p>Camiones: ${resumen.numCamiones}</p>` : `<p>Completado el ${new Date(barco.fechaFin).toLocaleDateString()}</p>`}
+        <button class="btn-ver-barco" data-id="${barco.id}">Ver detalle</button>
+    `;
+  div.querySelector('.btn-ver-barco').addEventListener('click', () => mostrarDetalleBarco(barco.id));
+  return div;
+}
+
+async function mostrarDetalleBarco(id) {
+  barcoActualId = id;
+  const barcos = await obtenerBarcos();
+  const barco = barcos.find(b => b.id === id);
+  if (!barco) return;
+
+  document.getElementById('detalleNombreBarco').innerText = barco.nombre;
+  const resumen = await calcularResumenBarco(id);
+  const contResumen = document.getElementById('resumenBarco');
+  contResumen.innerHTML = `
+        <div class="resumen-grid">
+            <div>Previsto: ${barco.cargaTotalPrevista.toLocaleString()} kg</div>
+            <div>Acumulado: ${resumen.cargaAcumulada.toLocaleString()} kg</div>
+            <div>Restante: ${resumen.cargaRestante.toLocaleString()} kg</div>
+            <div>Camiones cargados: ${resumen.numCamiones}</div>
+            <div>Peso medio: ${Math.round(resumen.pesoMedio).toLocaleString()} kg</div>
+            <div>Camiones restantes aprox.: ${resumen.camionesRestantesAprox}</div>
+        </div>
+        <div class="barra-progreso"><div style="width: ${Math.min(100, (resumen.cargaAcumulada / barco.cargaTotalPrevista) * 100)}%;"></div></div>
+    `;
+
+  // Lista de albaranes
+  const albaranes = await obtenerAlbaranesPorBarco(id);
+  const listaUl = document.getElementById('listaAlbaranesBarco');
   if (albaranes.length === 0) {
-    alert('No hay datos para exportar');
-    return;
+    listaUl.innerHTML = '<li>No hay albaranes para este barco</li>';
+  } else {
+    listaUl.innerHTML = '';
+    for (const item of albaranes) {
+      const li = document.createElement('li');
+      li.innerHTML = `${item.matricula} - ${item.peso.toLocaleString()} kg <small>${new Date(item.fecha).toLocaleString()}</small>
+                            <button class="btn-borrar-alb" data-id="${item.id}">🗑️</button>`;
+      listaUl.appendChild(li);
+    }
+    document.querySelectorAll('.btn-borrar-alb').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const albId = Number(btn.dataset.id);
+        if (confirm('¿Borrar este albarán?')) {
+          await borrarAlbaran(albId);
+          await mostrarDetalleBarco(id);
+        }
+      });
+    });
   }
 
-  let csv = "Matrícula,Peso (kg),Fecha\n";
-  for (const item of albaranes) {
-    csv += `${item.matricula},${item.peso},${new Date(item.fecha).toLocaleString()}\n`;
-  }
-
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  const url = URL.createObjectURL(blob);
-  link.href = url;
-  link.setAttribute('download', 'albaranes.csv');
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
-async function procesarOCRTrasFoto(fotoBase64) {
-    if (!fotoBase64) return;
-    const { matricula, peso } = await extraerDatosDeFoto(fotoBase64);
-    if (matricula) document.getElementById('matricula').value = matricula;
-    if (peso) document.getElementById('peso').value = peso;
+  mostrarPantalla('detalle');
 }
