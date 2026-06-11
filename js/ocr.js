@@ -56,6 +56,8 @@ function extraerMatricula(texto) {
     return match ? match[0] : null;
 }
 
+console.log(texto)
+
 // Extraer peso neto SIEMPRE en kilogramos (detecta toneladas automáticamente)
 function extraerPesoEnKg(texto) {
     // 1. Formato 1 (Heidelberg): tabla con NETO (t) y valor en la misma línea o siguiente
