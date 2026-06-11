@@ -56,56 +56,68 @@ function extraerMatricula(texto) {
     return match ? match[0] : null;
 }
 
-console.log(texto)
-
 // Extraer peso neto SIEMPRE en kilogramos (detecta toneladas automáticamente)
 function extraerPesoEnKg(texto) {
-    // 1. Formato 1 (Heidelberg): tabla con NETO (t) y valor en la misma línea o siguiente
-    // Busca "NETO (t)" y luego captura el número que está en la misma fila (hasta fin de línea)
+    // Dividir en líneas para análisis más preciso
+    const lines = texto.split(/\r?\n/);
+
+    // ----- ESTRATEGIA 1: Tabla Heidelberg (confusión t->1) -----
+    // Buscar línea que contenga "NETO (1)" o "NETO (t)" o "NETO (l)" o "NETO (I)"
+    let netoLineIndex = -1;
+    for (let i = 0; i < lines.length; i++) {
+        if (/NETO\s*\(\s*[1tTlI]\s*\)/i.test(lines[i])) {
+            netoLineIndex = i;
+            break;
+        }
+    }
+    if (netoLineIndex !== -1) {
+        // La línea siguiente suele contener los tres números: bruto, tara, neto
+        let dataLine = (netoLineIndex + 1 < lines.length) ? lines[netoLineIndex + 1] : '';
+        // Si la línea siguiente no tiene números, buscar en la misma línea después del patrón
+        if (!dataLine.match(/\d/)) {
+            dataLine = lines[netoLineIndex];
+        }
+        // Extraer todos los números (incluyen comas y puntos)
+        const numbers = dataLine.match(/[\d.,]+/g);
+        if (numbers && numbers.length >= 3) {
+            // El tercer número es el NETO (orden: BRUTO, TARA, NETO)
+            let netoStr = numbers[2];
+            // Normalizar: reemplazar coma por punto (para decimales)
+            netoStr = netoStr.replace(/,/g, '.');
+            let toneladas = parseFloat(netoStr);
+            if (!isNaN(toneladas)) {
+                return Math.round(toneladas * 1000); // convertir a kg
+            }
+        }
+    }
+
+    // ----- ESTRATEGIA 2: Misma tabla pero sin confusión (original) -----
+    // Busca "NETO (t)" y captura número en la misma línea o siguiente
     let match = texto.match(/NETO\s*\(\s*t\s*\)\s*[|\s]*([\d.,]+)/i);
     if (match) {
-        let pesoStr = match[1].replace(/\./g, '').replace(',', '.');
+        let pesoStr = match[1].replace(/,/g, '.');
         let toneladas = parseFloat(pesoStr);
         if (!isNaN(toneladas)) return Math.round(toneladas * 1000);
     }
 
-    // Alternativa: buscar línea que contenga "NETO (t)" y luego una línea con números
-    const lines = texto.split(/\r?\n/);
-    let netoIndex = -1;
-    for (let i = 0; i < lines.length; i++) {
-        if (/NETO\s*\(\s*t\s*\)/i.test(lines[i])) {
-            netoIndex = i;
-            break;
-        }
-    }
-    if (netoIndex !== -1 && netoIndex + 1 < lines.length) {
-        const nextLine = lines[netoIndex + 1];
-        const numberMatch = nextLine.match(/([\d.,]+)/);
-        if (numberMatch) {
-            let pesoStr = numberMatch[1].replace(/\./g, '').replace(',', '.');
-            let toneladas = parseFloat(pesoStr);
-            if (!isNaN(toneladas)) return Math.round(toneladas * 1000);
-        }
-    }
-
-    // 2. Formato 2 (CRH): "NETO" con punto miles y coma decimal (ej: 31.020,00)
+    // ----- ESTRATEGIA 3: Formato CRH (NETO con punto miles y coma decimal) -----
     match = texto.match(/NETO\s+([\d.]+,\d{2})/i);
     if (match) {
         let pesoStr = match[1].replace(/\./g, '').replace(',', '.');
         return parseFloat(pesoStr);
     }
 
-    // 3. Formato 3 (Lemona): "Peso Neto : 31.720"
+    // ----- ESTRATEGIA 4: Formato Lemona (Peso Neto : 31.720) -----
     match = texto.match(/Peso\s+Neto\s*:\s*([\d.]+)/i);
     if (match) {
         let pesoStr = match[1].replace(/\./g, '');
         return parseInt(pesoStr, 10);
     }
 
-    // 4. Fallback: buscar "NETO" seguido de número (sin unidad específica)
+    // ----- ESTRATEGIA 5: Fallback genérico (cualquier "NETO" seguido de número) -----
     match = texto.match(/NETO\s*:?\s*([\d.,]+)/i);
     if (match) {
-        let limpio = match[1].replace(/\./g, '').replace(',', '.');
+        let limpio = match[1].replace(/,/g, '.');
         return parseFloat(limpio);
     }
 
