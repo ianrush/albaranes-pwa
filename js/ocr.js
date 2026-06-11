@@ -1,4 +1,4 @@
-// ocr.js - Reconocimiento de texto específico para los 3 formatos de albarán
+// ocr.js - Reconocimiento de texto para 3 formatos de albarán con detección automática
 
 const OCR_LANG = 'spa+eng';
 
@@ -7,7 +7,6 @@ async function extraerDatosDeFoto(base64Image) {
     mostrarMensajeOCR("🔍 Leyendo texto del albarán...");
 
     try {
-        // Redimensionar para mejor rendimiento
         const imagenRedimensionada = await resizeImage(base64Image, 1200);
         const { data: { text } } = await Tesseract.recognize(imagenRedimensionada, OCR_LANG, {
             logger: m => console.log(m)
@@ -15,55 +14,95 @@ async function extraerDatosDeFoto(base64Image) {
 
         console.log("Texto OCR completo:\n", text);
 
-        const resultado = {
-            matricula: extraerMatricula(text),
-            pesoKg: extraerPesoEnKg(text),
-            textoCompleto: text
-        };
+        // Detectar tipo de albarán
+        const tipo = detectarTipoAlbaran(text);
+        console.log("Tipo detectado:", tipo);
 
-        if (resultado.matricula) {
-            mostrarMensajeOCR(`✅ Matrícula: ${resultado.matricula} | Peso: ${resultado.pesoKg} kg`);
-        } else {
-            mostrarMensajeOCR("⚠️ No se detectaron todos los datos. Revísalos manualmente.");
+        let matricula = null;
+        let pesoKg = null;
+
+        switch (tipo) {
+            case 'heidelberg':
+                matricula = extraerMatriculaHeidelberg(text);
+                pesoKg = extraerPesoHeidelberg(text);
+                break;
+            case 'crh':
+                matricula = extraerMatriculaCRH(text);
+                pesoKg = extraerPesoCRH(text);
+                break;
+            case 'lemona':
+                matricula = extraerMatriculaLemona(text);
+                pesoKg = extraerPesoLemona(text);
+                break;
+            default:
+                // Fallback: usar funciones genéricas
+                matricula = extraerMatriculaGenerica(text);
+                pesoKg = extraerPesoGenerico(text);
         }
 
-        return resultado;
+        if (matricula) console.log("Matrícula detectada:", matricula);
+        if (pesoKg) console.log("Peso detectado (kg):", pesoKg);
+
+        const mensaje = (matricula && pesoKg)
+            ? `✅ ${tipo.toUpperCase()}: Matrícula ${matricula} | ${pesoKg} kg`
+            : `⚠️ Datos incompletos. Matrícula: ${matricula || 'no'} | Peso: ${pesoKg || 'no'} kg`;
+        mostrarMensajeOCR(mensaje);
+
+        return { matricula, pesoKg, textoCompleto: text, tipo };
+
     } catch (error) {
         console.error("Error en OCR:", error);
         mostrarMensajeOCR("❌ Error al leer la imagen. Introduce los datos manualmente.");
-        return { matricula: null, pesoKg: null, textoCompleto: null };
+        return { matricula: null, pesoKg: null, textoCompleto: null, tipo: null };
     }
 }
 
-// Extraer matrícula (unifica los 3 formatos)
-function extraerMatricula(texto) {
-    const upperText = texto.toUpperCase();
-
-    // 1. Formato 1: "MATRICULA 4914KMF"
-    let match = upperText.match(/MATRICULA\s+([A-Z0-9]{6,8})/);
-    if (match) return match[1];
-
-    // 2. Formato 2: "MATRICULA: 3757NBN"
-    match = upperText.match(/MATRICULA:\s*([A-Z0-9]{6,8})/);
-    if (match) return match[1];
-
-    // 3. Formato 3: patrón general 4 números y 3 letras (con o sin guión)
-    match = upperText.match(/\b(\d{4})[ -]?([A-Z]{3})\b/);
-    if (match) return match[1] + match[2];
-
-    // 4. Fallback: cualquier grupo de 6-8 caracteres alfanuméricos que parezca matrícula
-    match = upperText.match(/\b[A-Z0-9]{6,8}\b/);
-    return match ? match[0] : null;
+// --- DETECCIÓN DE TIPO DE ALBARÁN---
+function detectarTipoAlbaran(texto) {
+    const upper = texto.toUpperCase();
+    if (upper.includes('HEIDELBERG MATERIALS') || upper.includes('HEIDELBERG MATERIALS HISPANIA'))
+        return 'heidelberg';
+    if (upper.includes('ORIGEN: ZIERBENA-BIZKAIA') && upper.includes('CRH'))
+        return 'crh';
+    if (upper.includes('CEMENTOS LEMONA') && (upper.includes('LEMONA@LEMONA.COM') || upper.includes('WWW.LEMONA.COM')))
+        return 'lemona';
+    return 'desconocido';
 }
 
-// Extraer peso neto SIEMPRE en kilogramos (detecta toneladas automáticamente)
-function extraerPesoEnKg(texto) {
-    // Dividir en líneas para análisis más preciso
-    const lines = texto.split(/\r?\n/);
+// --- EXTRACCIÓN MATRÍCULA POR TIPO DE ALBARÁN---
+function extraerMatriculaHeidelberg(texto) {
+    const match = texto.match(/MATRICULA\s+([A-Z0-9]{6,8})/i);
+    return match ? match[1] : null;
+}
 
-    // ----- ESTRATEGIA 1: Tabla Heidelberg (confusión t->1) -----
-    // Buscar línea que contenga "NETO (1)" o "NETO (t)" o "NETO (l)" o "NETO (I)"
+function extraerMatriculaCRH(texto) {
+    const match = texto.match(/MATRICULA:\s*([A-Z0-9]{6,8})/i);
+    return match ? match[1] : null;
+}
+
+function extraerMatriculaLemona(texto) {
+    // Busca patrón 4 números y 3 letras (puede tener guión)
+    const match = texto.match(/\b(\d{4})[ -]?([A-Z]{3})\b/);
+    return match ? match[1] + match[2] : null;
+}
+
+function extraerMatriculaGenerica(texto) {
+    let match = texto.match(/MATRICULA\s+([A-Z0-9]{6,8})/i);
+    if (match) return match[1];
+    match = texto.match(/MATRICULA:\s*([A-Z0-9]{6,8})/i);
+    if (match) return match[1];
+    match = texto.match(/\b(\d{4})[ -]?([A-Z]{3})\b/);
+    if (match) return match[1] + match[2];
+    return null;
+}
+
+// --- EXTRACCIÓN PESO NETO (SIEMPRE EN KG) POR TIPO DE ALBARÁN---
+
+// Heidelberg: peso en toneladas, tabla con "NETO (t)" y valor en línea siguiente
+function extraerPesoHeidelberg(texto) {
+    const lines = texto.split(/\r?\n/);
     let netoLineIndex = -1;
+    // Buscar línea que contenga "NETO (t)" o "NETO (1)" o "NETO (l)" etc.
     for (let i = 0; i < lines.length; i++) {
         if (/NETO\s*\(\s*[1tTlI]\s*\)/i.test(lines[i])) {
             netoLineIndex = i;
@@ -71,60 +110,73 @@ function extraerPesoEnKg(texto) {
         }
     }
     if (netoLineIndex !== -1) {
-        // La línea siguiente suele contener los tres números: bruto, tara, neto
         let dataLine = (netoLineIndex + 1 < lines.length) ? lines[netoLineIndex + 1] : '';
-        // Si la línea siguiente no tiene números, buscar en la misma línea después del patrón
-        if (!dataLine.match(/\d/)) {
-            dataLine = lines[netoLineIndex];
-        }
-        // Extraer todos los números (incluyen comas y puntos)
+        if (!dataLine.match(/\d/)) dataLine = lines[netoLineIndex];
         const numbers = dataLine.match(/[\d.,]+/g);
         if (numbers && numbers.length >= 3) {
-            // El tercer número es el NETO (orden: BRUTO, TARA, NETO)
-            let netoStr = numbers[2];
-            // Normalizar: reemplazar coma por punto (para decimales)
-            netoStr = netoStr.replace(/,/g, '.');
+            let netoStr = numbers[2].replace(/,/g, '.');
             let toneladas = parseFloat(netoStr);
-            if (!isNaN(toneladas)) {
-                return Math.round(toneladas * 1000); // convertir a kg
-            }
+            if (!isNaN(toneladas)) return Math.round(toneladas * 1000);
         }
     }
-
-    // ----- ESTRATEGIA 2: Misma tabla pero sin confusión (original) -----
-    // Busca "NETO (t)" y captura número en la misma línea o siguiente
-    let match = texto.match(/NETO\s*\(\s*t\s*\)\s*[|\s]*([\d.,]+)/i);
+    // Fallback para este formato
+    const match = texto.match(/NETO\s*\(\s*t\s*\)\s*[|\s]*([\d.,]+)/i);
     if (match) {
-        let pesoStr = match[1].replace(/,/g, '.');
-        let toneladas = parseFloat(pesoStr);
-        if (!isNaN(toneladas)) return Math.round(toneladas * 1000);
+        let toneladas = parseFloat(match[1].replace(',', '.'));
+        return Math.round(toneladas * 1000);
     }
+    return null;
+}
 
-    // ----- ESTRATEGIA 3: Formato CRH (NETO con punto miles y coma decimal) -----
-    match = texto.match(/NETO\s+([\d.]+,\d{2})/i);
+// CRH: peso en kg con formato "NETO 31.020,00"
+function extraerPesoCRH(texto) {
+    const match = texto.match(/NETO\s+([\d.]+,\d{2})/i);
     if (match) {
         let pesoStr = match[1].replace(/\./g, '').replace(',', '.');
         return parseFloat(pesoStr);
     }
+    return null;
+}
 
-    // ----- ESTRATEGIA 4: Formato Lemona (Peso Neto : 31.720) -----
-    match = texto.match(/Peso\s+Neto\s*:\s*([\d.]+)/i);
+// Lemona: peso en kg con formato "Peso Neto : 31.720" o "Neto 29.360 kg"
+function extraerPesoLemona(texto) {
+    // Primero busca "Peso Neto : 31.720"
+    let match = texto.match(/Peso\s+Neto\s*:\s*([\d.]+)/i);
     if (match) {
         let pesoStr = match[1].replace(/\./g, '');
         return parseInt(pesoStr, 10);
     }
-
-    // ----- ESTRATEGIA 5: Fallback genérico (cualquier "NETO" seguido de número) -----
-    match = texto.match(/NETO\s*:?\s*([\d.,]+)/i);
+    // Busca "Neto 29.360 kg" (como en el ejemplo del usuario)
+    match = texto.match(/\bNeto\s+([\d.]+)\s*kg\b/i);
     if (match) {
-        let limpio = match[1].replace(/,/g, '.');
-        return parseFloat(limpio);
+        let pesoStr = match[1].replace(/\./g, '');
+        return parseInt(pesoStr, 10);
     }
-
+    // Busca "NETO" seguido de número (sin kg)
+    match = texto.match(/NETO\s+([\d.]+)/i);
+    if (match) {
+        let pesoStr = match[1].replace(/\./g, '');
+        return parseInt(pesoStr, 10);
+    }
     return null;
 }
 
-// Redimensionar imagen para acelerar OCR (opcional pero recomendado)
+// Genérico (si no se detecta tipo)
+function extraerPesoGenerico(texto) {
+    // Intentar detectar si viene en toneladas o kg
+    let match = texto.match(/NETO\s*\(\s*t\s*\)\s*([\d.,]+)/i);
+    if (match) {
+        let ton = parseFloat(match[1].replace(',', '.'));
+        return Math.round(ton * 1000);
+    }
+    match = texto.match(/Peso\s+Neto\s*:\s*([\d.]+)/i);
+    if (match) return parseInt(match[1].replace(/\./g, ''), 10);
+    match = texto.match(/NETO\s+([\d.]+)/i);
+    if (match) return parseInt(match[1].replace(/\./g, ''), 10);
+    return null;
+}
+
+// --- UTILIDADES ---
 function resizeImage(base64, maxWidth = 1200) {
     return new Promise((resolve) => {
         const img = new Image();
@@ -146,7 +198,6 @@ function resizeImage(base64, maxWidth = 1200) {
     });
 }
 
-// Mostrar mensajes en la UI
 function mostrarMensajeOCR(mensaje) {
     let msgDiv = document.getElementById('mensajeOCR');
     if (!msgDiv) {
