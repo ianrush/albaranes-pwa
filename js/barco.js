@@ -6,18 +6,30 @@ async function calcularResumenBarco(barcoId) {
   if (!barco) return null;
 
   const cargaAcumulada = albaranes.reduce((sum, a) => sum + a.peso, 0);
-  const cargaRestante = barco.cargaTotalPrevista - cargaAcumulada;
+  const cargaTotalPrevista = barco.cargaTotalPrevista;
+
+  let cargaRestante = null;
+  let completado = false;
+  if (cargaTotalPrevista !== null) {
+    cargaRestante = cargaTotalPrevista - cargaAcumulada;
+    if (cargaRestante <= 0) completado = true;
+  }
+
   const numCamiones = albaranes.length;
   const pesoMedio = numCamiones > 0 ? cargaAcumulada / numCamiones : 0;
-  const camionesRestantesAprox = pesoMedio > 0 ? Math.ceil(cargaRestante / pesoMedio) : 0;
+  let camionesRestantesAprox = null;
+  if (cargaTotalPrevista !== null && pesoMedio > 0) {
+    camionesRestantesAprox = Math.ceil(cargaRestante / pesoMedio);
+  }
 
   return {
     cargaAcumulada,
-    cargaRestante: cargaRestante > 0 ? cargaRestante : 0,
+    cargaTotalPrevista,
+    cargaRestante,
     numCamiones,
     pesoMedio,
     camionesRestantesAprox,
-    completado: cargaAcumulada >= barco.cargaTotalPrevista
+    completado
   };
 }
 
@@ -31,11 +43,11 @@ async function finalizarCarga(barcoId) {
   }
 }
 
-async function iniciarNuevoBarco(nombre, cargaTotalPrevista) {
+async function iniciarNuevoBarco(nombre, cargaTotalToneladas) {
   const ahora = new Date().toISOString();
   const nuevoBarco = {
     nombre: nombre.trim(),
-    cargaTotalPrevista: parseFloat(cargaTotalPrevista),
+    cargaTotalPrevista: cargaTotalToneladas !== undefined && cargaTotalToneladas !== '' ? parseFloat(cargaTotalToneladas) : null,
     fechaInicio: ahora,
     fechaFin: null,
     estado: 'activo',

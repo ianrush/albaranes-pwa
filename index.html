@@ -32,7 +32,7 @@
       <h2>Nuevo barco</h2>
       <form id="formNuevoBarco">
         <input type="text" id="nombreBarco" placeholder="Nombre del barco" required>
-        <input type="number" id="cargaTotal" step="any" placeholder="Carga total prevista (kg)" required>
+        <input type="number" id="cargaTotal" step="any" placeholder="Carga total prevista (toneladas)">
         <button type="submit">Crear y empezar carga</button>
       </form>
     </div>
@@ -51,14 +51,16 @@
 
       <form id="albaranFormDetalle" style="margin-top:1rem;">
         <input type="text" id="matricula" placeholder="Matrícula" required>
-        <input type="number" id="peso" step="any" placeholder="Peso neto (kg)" required>
+        <input type="number" id="peso" step="any" placeholder="Peso neto (toneladas)" required>
         <button type="submit">✅ Guardar albarán</button>
       </form>
 
       <h3>Albaranes de este barco</h3>
       <ul id="listaAlbaranesBarco"></ul>
 
+      <button id="btnEditarCarga" class="secondary">✏️ Editar carga prevista</button>
       <button id="btnFinalizarCarga" class="secondary">🏁 Marcar carga como completada</button>
+
     </div>
   </div>
 

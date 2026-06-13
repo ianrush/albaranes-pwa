@@ -17,8 +17,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('formNuevoBarco').addEventListener('submit', async (e) => {
     e.preventDefault();
     const nombre = document.getElementById('nombreBarco').value;
-    const cargaTotal = document.getElementById('cargaTotal').value;
-    if (!nombre || !cargaTotal) return;
+    let cargaTotal = document.getElementById('cargaTotal').value;
+    cargaTotal = cargaTotal === '' ? null : parseFloat(cargaTotal);
+    if (!nombre) return;
     const id = await iniciarNuevoBarco(nombre, cargaTotal);
     await mostrarDetalleBarco(id);
   });
@@ -61,24 +62,78 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Botones de cámara (adaptados para usar el barcoActualId)
+  // Para el botón de foto
   document.getElementById('btnFotoDetalle').addEventListener('click', async () => {
     if (!barcoActualId) return;
     await tomarFotoConVisor(async (base64) => {
       const { matricula, pesoKg } = await extraerDatosDeFoto(base64);
-      if (matricula) document.getElementById('matricula').value = matricula;
-      if (pesoKg) document.getElementById('peso').value = pesoKg;
+      // Nota: pesoKg ahora es toneladas (lo hemos cambiado en ocr.js)
+      if (matricula && pesoKg) {
+        const nuevoAlbaran = {
+          matricula: matricula,
+          peso: pesoKg,
+          barcoId: barcoActualId,
+          fotoBase64: base64,
+          fecha: new Date().toISOString(),
+          sincronizado: false
+        };
+        await guardarAlbaran(nuevoAlbaran);
+        mostrarMensajeOCR(`✅ Albarán guardado automáticamente: ${matricula} - ${pesoKg.toFixed(2)} t`);
+        document.getElementById('preview').innerHTML = '';
+        fotoActualBase64 = null;
+        await mostrarDetalleBarco(barcoActualId);
+      } else {
+        if (matricula) document.getElementById('matricula').value = matricula;
+        if (pesoKg) document.getElementById('peso').value = pesoKg.toFixed(3);
+        mostrarMensajeOCR("⚠️ Datos incompletos. Complete y guarde manualmente.");
+      }
     });
   });
 
+  // Para el botón cargar imagen
   document.getElementById('btnCargarImagenDetalle').addEventListener('click', () => {
     if (!barcoActualId) return;
     cargarImagenDesdeArchivo(async (base64) => {
       const { matricula, pesoKg } = await extraerDatosDeFoto(base64);
-      if (matricula) document.getElementById('matricula').value = matricula;
-      if (pesoKg) document.getElementById('peso').value = pesoKg;
+      // Nota: pesoKg ahora es toneladas (lo hemos cambiado en ocr.js)
+      if (matricula && pesoKg) {
+        const nuevoAlbaran = {
+          matricula: matricula,
+          peso: pesoKg,
+          barcoId: barcoActualId,
+          fotoBase64: base64,
+          fecha: new Date().toISOString(),
+          sincronizado: false
+        };
+        await guardarAlbaran(nuevoAlbaran);
+        mostrarMensajeOCR(`✅ Albarán guardado automáticamente: ${matricula} - ${pesoKg.toFixed(2)} t`);
+        document.getElementById('preview').innerHTML = '';
+        fotoActualBase64 = null;
+        await mostrarDetalleBarco(barcoActualId);
+      } else {
+        if (matricula) document.getElementById('matricula').value = matricula;
+        if (pesoKg) document.getElementById('peso').value = pesoKg.toFixed(3);
+        mostrarMensajeOCR("⚠️ Datos incompletos. Complete y guarde manualmente.");
+      }
     });
   });
+
+  // Para el botón editar carga
+  document.getElementById('btnEditarCarga').addEventListener('click', async () => {
+    if (!barcoActualId) return;
+    const barcos = await obtenerBarcos();
+    const barco = barcos.find(b => b.id === barcoActualId);
+    const valorActual = barco.cargaTotalPrevista !== null ? barco.cargaTotalPrevista.toFixed(1) : '';
+    const nuevaCarga = prompt('Introduce la nueva carga prevista (toneladas):', valorActual);
+    if (nuevaCarga !== null) {
+      const nuevaCargaTon = nuevaCarga === '' ? null : parseFloat(nuevaCarga);
+      barco.cargaTotalPrevista = nuevaCargaTon;
+      await actualizarBarco(barco);
+      await mostrarDetalleBarco(barcoActualId);
+      await cargarListaBarcos();
+    }
+  });
+
 });
 
 function mostrarPantalla(pantalla) {
@@ -111,15 +166,16 @@ async function cargarListaBarcos() {
 
 function crearTarjetaBarco(barco, resumen) {
   const div = document.createElement('div');
+  const prevista = barco.cargaTotalPrevista !== null ? barco.cargaTotalPrevista.toFixed(1) + ' t' : 'No definida';
   div.className = 'barco-card';
   div.innerHTML = `
-        <h3>${barco.nombre}</h3>
-        <p>Previsto: ${barco.cargaTotalPrevista.toLocaleString()} kg</p>
-        ${resumen ? `<p>Acumulado: ${resumen.cargaAcumulada.toLocaleString()} kg</p>
-                      <p>Restante: ${resumen.cargaRestante.toLocaleString()} kg</p>
-                      <p>Camiones: ${resumen.numCamiones}</p>` : `<p>Completado el ${new Date(barco.fechaFin).toLocaleDateString()}</p>`}
-        <button class="btn-ver-barco" data-id="${barco.id}">Ver detalle</button>
-    `;
+    <h3>${barco.nombre}</h3>
+    <p>Previsto: ${prevista}</p>
+    ${resumen ? `<p>Acumulado: ${resumen.cargaAcumulada.toFixed(1)} t</p>
+                  <p>Restante: ${resumen.cargaRestante !== null ? resumen.cargaRestante.toFixed(1) + ' t' : 'N/A'}</p>
+                  <p>Camiones: ${resumen.numCamiones}</p>` : `<p>Completado el ${new Date(barco.fechaFin).toLocaleDateString()}</p>`}
+    <button class="btn-ver-barco" data-id="${barco.id}">Ver detalle</button>
+  `;
   div.querySelector('.btn-ver-barco').addEventListener('click', () => mostrarDetalleBarco(barco.id));
   return div;
 }
@@ -134,15 +190,15 @@ async function mostrarDetalleBarco(id) {
   const resumen = await calcularResumenBarco(id);
   const contResumen = document.getElementById('resumenBarco');
   contResumen.innerHTML = `
-        <div class="resumen-grid">
-            <div>Previsto: ${barco.cargaTotalPrevista.toLocaleString()} kg</div>
-            <div>Acumulado: ${resumen.cargaAcumulada.toLocaleString()} kg</div>
-            <div>Restante: ${resumen.cargaRestante.toLocaleString()} kg</div>
-            <div>Camiones cargados: ${resumen.numCamiones}</div>
-            <div>Peso medio: ${Math.round(resumen.pesoMedio).toLocaleString()} kg</div>
-            <div>Camiones restantes aprox.: ${resumen.camionesRestantesAprox}</div>
-        </div>
-        <div class="barra-progreso"><div style="width: ${Math.min(100, (resumen.cargaAcumulada / barco.cargaTotalPrevista) * 100)}%;"></div></div>
+    <div class="resumen-grid">
+        <div>Previsto: ${barco.cargaTotalPrevista !== null ? barco.cargaTotalPrevista.toFixed(1) + ' t' : 'No definido'}</div>
+        <div>Acumulado: ${resumen.cargaAcumulada.toFixed(1)} t</div>
+        <div>Restante: ${resumen.cargaRestante !== null ? resumen.cargaRestante.toFixed(1) + ' t' : 'N/A'}</div>
+        <div>Camiones cargados: ${resumen.numCamiones}</div>
+        <div>Peso medio: ${resumen.pesoMedio.toFixed(1)} t</div>
+        <div>Camiones restantes aprox.: ${resumen.camionesRestantesAprox !== null ? resumen.camionesRestantesAprox : 'N/A'}</div>
+    </div>
+    ${barco.cargaTotalPrevista !== null ? `<div class="barra-progreso"><div style="width: ${Math.min(100, (resumen.cargaAcumulada / barco.cargaTotalPrevista) * 100)}%;"></div></div>` : ''}
     `;
 
   // Lista de albaranes
