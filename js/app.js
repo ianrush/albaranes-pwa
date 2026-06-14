@@ -1,7 +1,7 @@
 // app.js - Control de navegación, gestión de barcos y albaranes con nueva interfaz
 
 let barcoActualId = null;
-let fotoActualBase64 = null;
+// let fotoActualBase64 = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Elementos de pantalla
