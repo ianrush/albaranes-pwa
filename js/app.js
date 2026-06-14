@@ -210,7 +210,7 @@ async function mostrarDetalleBarco(id) {
     listaUl.innerHTML = '';
     for (const item of albaranes) {
       const li = document.createElement('li');
-      li.innerHTML = `${item.matricula} - ${item.peso.toLocaleString()} kg <small>${new Date(item.fecha).toLocaleString()}</small>
+      li.innerHTML = `${item.matricula} - ${item.peso.toLocaleString()} t <small>${new Date(item.fecha).toLocaleString()}</small>
                             <button class="btn-borrar-alb" data-id="${item.id}">🗑️</button>`;
       listaUl.appendChild(li);
     }

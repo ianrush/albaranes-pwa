@@ -41,6 +41,45 @@
     <div id="pantallaDetalle" class="pantalla" style="display:none;">
       <button class="btnVolver">◀ Volver</button>
       <h2 id="detalleNombreBarco"></h2>
+
+      <!-- Tarjeta de resumen con acciones -->
+      <div class="resumen-card">
+        <div id="resumenBarco" class="resumen-contenido"></div>
+        <div class="acciones-rapidas">
+          <button id="btnEditarCarga" class="btn-editar">✏️ Editar carga prevista</button>
+          <button id="btnFinalizarCarga" class="btn-finalizar">🏁 Marcar como completada</button>
+        </div>
+      </div>
+
+      <!-- Sección de captura (colapsable o siempre visible) -->
+      <div class="captura-section">
+        <div class="section-header">
+          <span>📸 Añadir albarán</span>
+        </div>
+        <div class="camera-actions">
+          <button id="btnFotoDetalle" class="btn-camara">📷 Tomar foto</button>
+          <button id="btnCargarImagenDetalle" class="btn-galeria">🖼️ Cargar imagen</button>
+        </div>
+        <div id="preview" class="preview"></div>
+        <form id="albaranFormDetalle" class="form-albaran">
+          <input type="text" id="matricula" placeholder="Matrícula" required>
+          <input type="number" id="peso" step="any" placeholder="Peso neto (toneladas)" required>
+          <button type="submit">💾 Guardar albarán</button>
+        </form>
+      </div>
+
+      <!-- Lista de albaranes -->
+      <div class="lista-section">
+        <div class="section-header">
+          <span>📋 Albaranes cargados</span>
+        </div>
+        <ul id="listaAlbaranesBarco"></ul>
+      </div>
+    </div>
+
+    <!-- <div id="pantallaDetalle" class="pantalla" style="display:none;">
+      <button class="btnVolver">◀ Volver</button>
+      <h2 id="detalleNombreBarco"></h2>
       <div id="resumenBarco" class="resumen"></div>
 
       <div class="camera-section">
@@ -61,7 +100,7 @@
       <button id="btnEditarCarga" class="secondary">✏️ Editar carga prevista</button>
       <button id="btnFinalizarCarga" class="secondary">🏁 Marcar carga como completada</button>
 
-    </div>
+    </div> -->
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
