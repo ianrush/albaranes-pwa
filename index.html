@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <base href="/albaranes-pwa/">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-  <title>Albaranes PWA</title>
+  <title>Carga de Cemento</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="manifest" href="manifest.json">
   <script>navigator.serviceWorker.register("service-worker.js")</script>
@@ -13,22 +13,32 @@
 </head>
 
 <body>
-  <div class="container">
-    <!-- Cabecera común -->
-    <h1>📊 Gestor de Carga de Barcos</h1>
+  <!-- Cabecera con título y botones de navegación -->
+  <header class="app-header">
+    <button id="btnBack" class="btn-back" style="display: none;">←</button>
+    <h1 class="app-title">Carga de Cemento</h1>
+    <div id="menuAcciones" class="menu-acciones" style="display: none;">
+      <button id="btnMenuAcciones" class="btn-menu">⋮</button>
+      <div id="dropdownMenu" class="dropdown-content">
+        <button id="btnEditarCargaMenu">✏️ Editar carga prevista</button>
+        <button id="btnFinalizarCargaMenu">🏁 Finalizar carga</button>
+      </div>
+    </div>
+  </header>
 
-    <!-- Pantalla 1: Lista de barcos -->
-    <div id="pantallaLista" class="pantalla">
-      <button id="btnNuevoBarco">➕ Nuevo barco</button>
+  <!-- Pantalla 1: Lista de barcos -->
+  <div id="pantallaLista" class="pantalla">
+    <div class="content">
       <h2>Barcos activos</h2>
       <div id="listaBarcosActivos"></div>
       <h2>Histórico</h2>
       <div id="listaBarcosCompletados"></div>
     </div>
+  </div>
 
-    <!-- Pantalla 2: Formulario nuevo barco -->
-    <div id="pantallaNuevoBarco" class="pantalla" style="display:none;">
-      <button class="btnVolver">◀ Volver</button>
+  <!-- Pantalla 2: Formulario nuevo barco -->
+  <div id="pantallaNuevoBarco" class="pantalla" style="display:none;">
+    <div class="content">
       <h2>Nuevo barco</h2>
       <form id="formNuevoBarco">
         <input type="text" id="nombreBarco" placeholder="Nombre del barco" required>
@@ -36,71 +46,44 @@
         <button type="submit">Crear y empezar carga</button>
       </form>
     </div>
+  </div>
 
-    <!-- Pantalla 3: Detalle de barco activo (incluye captura de albaranes) -->
-    <div id="pantallaDetalle" class="pantalla" style="display:none;">
-      <button class="btnVolver">◀ Volver</button>
-      <h2 id="detalleNombreBarco"></h2>
-
-      <!-- Tarjeta de resumen con acciones -->
-      <div class="resumen-card">
-        <div id="resumenBarco" class="resumen-contenido"></div>
-        <div class="acciones-rapidas">
-          <button id="btnEditarCarga" class="btn-editar">✏️ Editar carga prevista</button>
-          <button id="btnFinalizarCarga" class="btn-finalizar">🏁 Marcar como completada</button>
-        </div>
-      </div>
-
-      <!-- Sección de captura (colapsable o siempre visible) -->
-      <div class="captura-section">
-        <div class="section-header">
-          <span>📸 Añadir albarán</span>
-        </div>
-        <div class="camera-actions">
-          <button id="btnFotoDetalle" class="btn-camara">📷 Tomar foto</button>
-          <button id="btnCargarImagenDetalle" class="btn-galeria">🖼️ Cargar imagen</button>
-        </div>
-        <div id="preview" class="preview"></div>
-        <form id="albaranFormDetalle" class="form-albaran">
-          <input type="text" id="matricula" placeholder="Matrícula" required>
-          <input type="number" id="peso" step="any" placeholder="Peso neto (toneladas)" required>
-          <button type="submit">💾 Guardar albarán</button>
-        </form>
-      </div>
-
-      <!-- Lista de albaranes -->
-      <div class="lista-section">
-        <div class="section-header">
-          <span>📋 Albaranes cargados</span>
-        </div>
-        <ul id="listaAlbaranesBarco"></ul>
-      </div>
-    </div>
-
-    <!-- <div id="pantallaDetalle" class="pantalla" style="display:none;">
-      <button class="btnVolver">◀ Volver</button>
-      <h2 id="detalleNombreBarco"></h2>
+  <!-- Pantalla 3: Detalle de barco activo -->
+  <div id="pantallaDetalle" class="pantalla" style="display:none;">
+    <div class="content">
       <div id="resumenBarco" class="resumen"></div>
 
-      <div class="camera-section">
-        <button id="btnFotoDetalle">📷 Añadir albarán</button>
-        <button id="btnCargarImagenDetalle" class="secondary">🖼️ Cargar imagen</button>
-        <div id="preview" class="preview"></div>
-      </div>
+      <!-- Lista de albaranes -->
+      <h3>Albaranes</h3>
+      <ul id="listaAlbaranesBarco"></ul>
+    </div>
 
-      <form id="albaranFormDetalle" style="margin-top:1rem;">
-        <input type="text" id="matricula" placeholder="Matrícula" required>
-        <input type="number" id="peso" step="any" placeholder="Peso neto (toneladas)" required>
+    <!-- Botón flotante para añadir albarán (FAB) -->
+    <button id="fabNuevoAlbaran" class="fab">+</button>
+  </div>
+
+  <!-- Barra de navegación inferior -->
+  <nav class="bottom-nav">
+    <button id="navBarcos" class="nav-item active">📋 Barcos</button>
+    <button id="navNuevoBarco" class="nav-item">➕ Nuevo</button>
+  </nav>
+
+  <!-- Diálogo/modal para capturar foto/OCR (podría estar oculto inicialmente) -->
+  <div id="modalAlbaran" class="modal" style="display:none;">
+    <div class="modal-content">
+      <span class="close-modal">&times;</span>
+      <h3>Nuevo albarán</h3>
+      <div class="camera-section">
+        <button id="btnFotoModal">📷 Sacar foto</button>
+        <button id="btnCargarImagenModal" class="secondary">🖼️ Cargar imagen</button>
+        <div id="previewModal" class="preview"></div>
+      </div>
+      <form id="albaranFormModal">
+        <input type="text" id="matriculaModal" placeholder="Matrícula" required>
+        <input type="number" id="pesoModal" step="any" placeholder="Peso neto (toneladas)" required>
         <button type="submit">✅ Guardar albarán</button>
       </form>
-
-      <h3>Albaranes de este barco</h3>
-      <ul id="listaAlbaranesBarco"></ul>
-
-      <button id="btnEditarCarga" class="secondary">✏️ Editar carga prevista</button>
-      <button id="btnFinalizarCarga" class="secondary">🏁 Marcar carga como completada</button>
-
-    </div> -->
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>

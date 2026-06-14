@@ -1,4 +1,4 @@
-// app.js - Control de navegación y gestión de barcos
+/* // app.js - Control de navegación y gestión de barcos
 
 let barcoActualId = null;
 
@@ -134,14 +134,192 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+}); */
+// app.js - Nuevo con navegación y modal
+
+let barcoActualId = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  // Elementos
+  const pantallaLista = document.getElementById('pantallaLista');
+  const pantallaNuevoBarco = document.getElementById('pantallaNuevoBarco');
+  const pantallaDetalle = document.getElementById('pantallaDetalle');
+  const btnBack = document.getElementById('btnBack');
+  const menuAcciones = document.getElementById('menuAcciones');
+  const navBarcos = document.getElementById('navBarcos');
+  const navNuevo = document.getElementById('navNuevoBarco');
+  const fab = document.getElementById('fabNuevoAlbaran');
+  const modal = document.getElementById('modalAlbaran');
+  const closeModal = document.querySelector('.close-modal');
+  const btnMenu = document.getElementById('btnMenuAcciones');
+  const dropdown = document.getElementById('dropdownMenu');
+
+  // Mostrar pantalla de lista al inicio
+  mostrarPantalla('lista');
+  await cargarListaBarcos();
+
+  // Navegación inferior
+  navBarcos.addEventListener('click', () => {
+    mostrarPantalla('lista');
+    cargarListaBarcos();
+  });
+  navNuevo.addEventListener('click', () => mostrarPantalla('nuevoBarco'));
+
+  // Botón volver
+  btnBack.addEventListener('click', () => mostrarPantalla('lista'));
+
+  // Menú desplegable
+  btnMenu.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dropdown.classList.toggle('show-dropdown');
+  });
+  document.addEventListener('click', () => dropdown.classList.remove('show-dropdown'));
+
+  // Acciones del menú
+  document.getElementById('btnEditarCargaMenu').addEventListener('click', async () => {
+    dropdown.classList.remove('show-dropdown');
+    if (!barcoActualId) return;
+    // lógica de editar carga (igual que antes)
+    const barcos = await obtenerBarcos();
+    const barco = barcos.find(b => b.id === barcoActualId);
+    const valorActual = barco.cargaTotalPrevista !== null ? barco.cargaTotalPrevista.toFixed(1) : '';
+    const nuevaCarga = prompt('Introduce la nueva carga prevista (toneladas):', valorActual);
+    if (nuevaCarga !== null) {
+      const nuevaCargaTon = nuevaCarga === '' ? null : parseFloat(nuevaCarga);
+      barco.cargaTotalPrevista = nuevaCargaTon;
+      await actualizarBarco(barco);
+      await mostrarDetalleBarco(barcoActualId);
+      await cargarListaBarcos();
+    }
+  });
+  document.getElementById('btnFinalizarCargaMenu').addEventListener('click', async () => {
+    dropdown.classList.remove('show-dropdown');
+    if (barcoActualId && confirm('¿Marcar esta carga como completada?')) {
+      await finalizarCarga(barcoActualId);
+      await mostrarDetalleBarco(barcoActualId);
+    }
+  });
+
+  // FAB: abrir modal
+  fab.addEventListener('click', () => {
+    if (!barcoActualId) return;
+    modal.style.display = 'flex';
+    // Limpiar formulario y preview
+    document.getElementById('matriculaModal').value = '';
+    document.getElementById('pesoModal').value = '';
+    document.getElementById('previewModal').innerHTML = '';
+    fotoActualBase64 = null;
+  });
+  closeModal.addEventListener('click', () => modal.style.display = 'none');
+  window.addEventListener('click', (e) => {
+    if (e.target === modal) modal.style.display = 'none';
+  });
+
+  // Cámara y carga imagen dentro del modal (usar elementos con id...Modal)
+  document.getElementById('btnFotoModal').addEventListener('click', async () => {
+    if (!barcoActualId) return;
+    await tomarFotoConVisor(async (base64) => {
+      const { matricula, pesoKg } = await extraerDatosDeFoto(base64);
+      if (matricula && pesoKg) {
+        // Guardado automático
+        const nuevoAlbaran = {
+          matricula, peso: pesoKg, barcoId: barcoActualId,
+          fotoBase64: base64, fecha: new Date().toISOString(), sincronizado: false
+        };
+        await guardarAlbaran(nuevoAlbaran);
+        mostrarMensajeOCR(`✅ Guardado: ${matricula} - ${pesoKg.toFixed(2)} t`);
+        modal.style.display = 'none';
+        await mostrarDetalleBarco(barcoActualId);
+      } else {
+        if (matricula) document.getElementById('matriculaModal').value = matricula;
+        if (pesoKg) document.getElementById('pesoModal').value = pesoKg.toFixed(3);
+        mostrarMensajeOCR("Complete datos y guarde manualmente.");
+      }
+    });
+  });
+  document.getElementById('btnCargarImagenModal').addEventListener('click', () => {
+    if (!barcoActualId) return;
+    cargarImagenDesdeArchivo(async (base64) => {
+      const { matricula, pesoKg } = await extraerDatosDeFoto(base64);
+      if (matricula && pesoKg) {
+        const nuevoAlbaran = {
+          matricula, peso: pesoKg, barcoId: barcoActualId,
+          fotoBase64: base64, fecha: new Date().toISOString(), sincronizado: false
+        };
+        await guardarAlbaran(nuevoAlbaran);
+        mostrarMensajeOCR(`✅ Guardado: ${matricula} - ${pesoKg.toFixed(2)} t`);
+        modal.style.display = 'none';
+        await mostrarDetalleBarco(barcoActualId);
+      } else {
+        if (matricula) document.getElementById('matriculaModal').value = matricula;
+        if (pesoKg) document.getElementById('pesoModal').value = pesoKg.toFixed(3);
+        mostrarMensajeOCR("Complete datos y guarde manualmente.");
+      }
+    });
+  });
+
+  // Formulario manual dentro del modal
+  document.getElementById('albaranFormModal').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!barcoActualId) return;
+    const matricula = document.getElementById('matriculaModal').value.trim().toUpperCase();
+    const peso = parseFloat(document.getElementById('pesoModal').value);
+    if (!matricula || isNaN(peso)) return alert('Rellena todos los campos');
+    if (!fotoActualBase64) return alert('Primero captura o carga una foto');
+    const nuevoAlbaran = {
+      matricula, peso, barcoId: barcoActualId,
+      fotoBase64: fotoActualBase64, fecha: new Date().toISOString(), sincronizado: false
+    };
+    await guardarAlbaran(nuevoAlbaran);
+    modal.style.display = 'none';
+    await mostrarDetalleBarco(barcoActualId);
+  });
+
+  // Resto de funciones: mostrarPantalla, cargarListaBarcos, mostrarDetalleBarco (adaptadas)
+  // Deben actualizar la visibilidad del botón back y el menú según la pantalla.
 });
 
 function mostrarPantalla(pantalla) {
+  const pLista = document.getElementById('pantallaLista');
+  const pNuevo = document.getElementById('pantallaNuevoBarco');
+  const pDetalle = document.getElementById('pantallaDetalle');
+  const btnBack = document.getElementById('btnBack');
+  const menuAcciones = document.getElementById('menuAcciones');
+  const navItems = document.querySelectorAll('.nav-item');
+
+  pLista.style.display = 'none';
+  pNuevo.style.display = 'none';
+  pDetalle.style.display = 'none';
+
+  if (pantalla === 'lista') {
+    pLista.style.display = 'block';
+    btnBack.style.display = 'none';
+    menuAcciones.style.display = 'none';
+    navItems.forEach(btn => btn.classList.remove('active'));
+    document.getElementById('navBarcos').classList.add('active');
+  } else if (pantalla === 'nuevoBarco') {
+    pNuevo.style.display = 'block';
+    btnBack.style.display = 'flex';
+    menuAcciones.style.display = 'none';
+    navItems.forEach(btn => btn.classList.remove('active'));
+    document.getElementById('navNuevoBarco').classList.add('active');
+  } else if (pantalla === 'detalle') {
+    pDetalle.style.display = 'block';
+    btnBack.style.display = 'flex';
+    menuAcciones.style.display = 'block';
+    // No resaltamos ningún nav-item porque estamos en detalle
+    navItems.forEach(btn => btn.classList.remove('active'));
+  }
+}
+
+// Asegurar que mostrarDetalleBarco llama a mostrarPantalla('detalle') y actualiza barcoActualId
+
+/* function mostrarPantalla(pantalla) {
   document.getElementById('pantallaLista').style.display = pantalla === 'lista' ? 'block' : 'none';
   document.getElementById('pantallaNuevoBarco').style.display = pantalla === 'nuevoBarco' ? 'block' : 'none';
   document.getElementById('pantallaDetalle').style.display = pantalla === 'detalle' ? 'block' : 'none';
   if (pantalla === 'lista') cargarListaBarcos();
-}
+} */
 
 async function cargarListaBarcos() {
   const activos = await obtenerBarcos('activo');

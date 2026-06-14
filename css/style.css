@@ -4,7 +4,6 @@
   box-sizing: border-box;
 }
 
-
 h1 {
   font-size: 1.8rem;
   text-align: center;
@@ -17,6 +16,184 @@ h2 {
   margin: 1rem 0 0.5rem;
   border-left: 4px solid #3498db;
   padding-left: 0.5rem;
+}
+
+/* Cabecera moderna */
+.app-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #2c3e50;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.8rem 1rem;
+  z-index: 100;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.app-title {
+  font-size: 1.2rem;
+  margin: 0;
+  font-weight: 500;
+}
+
+.btn-back {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.8rem;
+  line-height: 1;
+  padding: 0;
+  margin: 0;
+  width: auto;
+  cursor: pointer;
+}
+
+.menu-acciones {
+  position: relative;
+}
+
+.btn-menu {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.6rem;
+  line-height: 1;
+  padding: 0;
+  width: auto;
+  cursor: pointer;
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 2rem;
+  background: white;
+  min-width: 180px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  z-index: 200;
+}
+
+.dropdown-content button {
+  background: none;
+  border: none;
+  color: #2c3e50;
+  padding: 0.8rem 1rem;
+  text-align: left;
+  width: 100%;
+  font-size: 0.9rem;
+}
+
+.dropdown-content button:hover {
+  background: #f0f0f0;
+}
+
+.show-dropdown {
+  display: block;
+}
+
+/* Contenido principal (desplazable) */
+.pantalla {
+  margin-top: 60px;
+  /* espacio para cabecera fija */
+  margin-bottom: 70px;
+  /* espacio para barra inferior */
+  overflow-y: auto;
+}
+
+.content {
+  padding: 1rem;
+}
+
+/* Barra inferior fija */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  display: flex;
+  justify-content: space-around;
+  padding: 0.5rem 0;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+.nav-item {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  padding: 0.5rem 1rem;
+  border-radius: 2rem;
+  color: #7f8c8d;
+  width: auto;
+}
+
+.nav-item.active {
+  background: #3498db;
+  color: white;
+}
+
+/* Botón flotante (FAB) */
+.fab {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  background: #3498db;
+  color: white;
+  width: 56px;
+  height: 56px;
+  border-radius: 28px;
+  font-size: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+}
+
+.fab:hover {
+  background: #2980b9;
+}
+
+/* Modal para captura de albarán */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.modal-content {
+  background: white;
+  width: 90%;
+  max-width: 500px;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  position: relative;
+  max-height: 90%;
+  overflow-y: auto;
+}
+
+.close-modal {
+  position: absolute;
+  top: 0.5rem;
+  right: 1rem;
+  font-size: 1.8rem;
+  cursor: pointer;
 }
 
 .camera-section,
@@ -117,11 +294,6 @@ li span {
   padding: 1rem;
   margin-bottom: 1rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-
-..pantalla {
-  transition: display 0.2s;
 }
 
 .btn-ver-barco {
